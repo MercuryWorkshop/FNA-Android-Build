@@ -240,13 +240,14 @@ jobs:
       - name: build dotnet
         shell: bash
         run: |
+          export ANDROID_NDK_ROOT=$ANDROID_NDK_HOME
           mkdir -p Binaries
           git clone -b ${{ env.DOTNET_RUNTIME_VERSION }} --depth=1 https://github.com/dotnet/runtime
           cd runtime/
           git apply ../dotnet-static-init.patch
           git apply ../dotnet-relax-typeload.patch
-          ABIS_DEFAULT=(arm64 x64)
-          for abi in "${SELECTED_ABIS[@]}"; do
+          ABIS=(arm64 x64)
+          for abi in "${ABIS[@]}"; do
             arch="$abi"
             rid="android-$arch"
             ./build.sh \
