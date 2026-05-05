@@ -29,11 +29,8 @@ on:
       
 jobs:
   build:
-    strategy:
-      matrix:
-        pthread_enabled: [true, false]
     runs-on: ubuntu-latest
-    name: Build SDL3, SDL2, FNA natives, OpenSSL (pthread=${{ matrix.pthread_enabled }})
+    name: Build SDL3, SDL2, FNA natives, OpenSSL
     steps:
       - name: Check out source
         uses: actions/checkout@v1
@@ -41,10 +38,66 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r25b
+          add-to-path: true
       - name: Install dependencies
         run: |
           sudo apt -y update
           sudo apt install -y ninja-build cmake llvm lld clang build-essential python-is-python3 curl git lldb libicu-dev liblttng-ust-dev libssl-dev libkrb5-dev pigz cpio spirv-headers
+      - name: lua54
+        run: |
+          ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+          API_LEVEL=26
+          LUA_VERSION="${LUA_VERSION:-5.4.7}"
+          LUA_TARBALL="https://www.lua.org/ftp/lua-$LUA_VERSION.tar.gz"
+          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
+          curl -fsSL "$LUA_TARBALL" -o lua.tar.gz
+          tar xzf lua.tar.gz
+          rm lua.tar.gz
+          mv "lua-$LUA_VERSION" lua-src
+                    
+          for abi in "${ABIS[@]}"; do
+              case "$abi" in
+                  arm64-v8a)    triple="aarch64-linux-android" ;;
+                  armeabi-v7a)  triple="armv7a-linux-androideabi" ;;
+                  x86)          triple="i686-linux-android" ;;
+                  x86_64)       triple="x86_64-linux-android" ;;
+              esac
+          
+              CC="$TOOLCHAIN/bin/${triple}${API_LEVEL}-clang"
+              if [[ ! -x "$CC" ]]; then
+                  echo "Compiler not found: $CC" >&2
+                  exit 2
+              fi
+          
+              OUT_DIR="$JNILIBS_DIR/$abi"
+              mkdir -p "$OUT_DIR"
+              
+              cd "$LUA_SRC/src"
+              SOURCES=()
+              for f in *.c; do
+                  case "$f" in
+                      lua.c|luac.c) ;;  # skip standalone tool entry points
+                      *) SOURCES+=("$f") ;;
+                  esac
+              done
+          
+              TMP_OUT="$LUA_SRC/build-$abi"
+              rm -rf "$TMP_OUT"
+              mkdir -p "$TMP_OUT"
+          
+              "$CC" \
+                  -O2 -fPIC -shared \
+                  -DLUA_USE_LINUX -DLUA_USE_POSIX -DLUA_USE_DLOPEN \
+                  -Wl,-soname,liblua54.so \
+                  -ldl -lm \
+                  -o "$TMP_OUT/liblua54.so" \
+                  "${SOURCES[@]}"
+                  
+              "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded "$TMP_OUT/liblua54.so"
+          
+              cp "$TMP_OUT/liblua54.so" "$OUT_DIR/liblua54.so"
+          done
+          
       # - name: SDL3
       #   shell: bash
       #   run: |
@@ -170,11 +223,8 @@ jobs:
       #     path: Binaries/
 
   build-dotnet:
-    strategy:
-      matrix:
-        pthread_enabled: [true, false]
     runs-on: ubuntu-latest
-    name: Build dotnet (pthread=${{ matrix.pthread_enabled }})
+    name: Build dotnet
     steps:
       - name: Check out source
         uses: actions/checkout@v1
@@ -182,18 +232,19 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r25b
+          add-to-path: true
       - name: Install dependencies
         run: |
           sudo apt -y update
           sudo apt install -y ninja-build cmake llvm lld clang build-essential python-is-python3 curl git lldb libicu-dev liblttng-ust-dev libssl-dev libkrb5-dev pigz cpio spirv-headers ripgrep
-      - name: dotnet
+      - name: build dotnet
         shell: bash
         run: |
           mkdir -p Binaries
           git clone -b ${{ env.DOTNET_RUNTIME_VERSION }} --depth=1 https://github.com/dotnet/runtime
           cd runtime/
-          git apply ../../dotnet-static-init.patch
-          git apply ../../dotnet-relax-typeload.patch
+          git apply ../dotnet-static-init.patch
+          git apply ../dotnet-relax-typeload.patch
           ABIS_DEFAULT=(arm64 x64)
           for abi in "${SELECTED_ABIS[@]}"; do
             arch="$abi"
