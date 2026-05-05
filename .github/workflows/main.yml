@@ -54,6 +54,7 @@ jobs:
           tar xzf lua.tar.gz
           rm lua.tar.gz
           mv "lua-$LUA_VERSION" lua-src
+          mkdir -p Binaries
                     
           for abi in "${ABIS[@]}"; do
               case "$abi" in
@@ -68,20 +69,17 @@ jobs:
                   echo "Compiler not found: $CC" >&2
                   exit 2
               fi
-          
-              OUT_DIR="$JNILIBS_DIR/$abi"
-              mkdir -p "$OUT_DIR"
               
-              cd "$LUA_SRC/src"
+              cd "lua-src/src"
               SOURCES=()
               for f in *.c; do
                   case "$f" in
-                      lua.c|luac.c) ;;  # skip standalone tool entry points
+                      lua.c|luac.c) ;; 
                       *) SOURCES+=("$f") ;;
                   esac
               done
           
-              TMP_OUT="$LUA_SRC/build-$abi"
+              TMP_OUT="../build-$abi"
               rm -rf "$TMP_OUT"
               mkdir -p "$TMP_OUT"
           
@@ -92,10 +90,8 @@ jobs:
                   -ldl -lm \
                   -o "$TMP_OUT/liblua54.so" \
                   "${SOURCES[@]}"
-                  
-              "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded "$TMP_OUT/liblua54.so"
           
-              cp "$TMP_OUT/liblua54.so" "$OUT_DIR/liblua54.so"
+              cp "$TMP_OUT/liblua54.so" "../../Binaries/liblua54-$abi.so"
           done
           
       # - name: SDL3
