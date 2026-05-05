@@ -40,7 +40,7 @@ jobs:
       - name: Install NDK 
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25d
+          ndk-version: r25b
       - name: Install dependencies
         run: |
           sudo apt -y update
@@ -181,7 +181,7 @@ jobs:
       - name: Install NDK 
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25d
+          ndk-version: r25b
       - name: Install dependencies
         run: |
           sudo apt -y update
