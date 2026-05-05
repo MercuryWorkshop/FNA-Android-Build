@@ -1,0 +1,241 @@
+name: FNA Android Build
+
+env:
+  SDL_VERSION: release-3.4.4
+  SDL2COMPAT_VERSION: release-2.32.66
+  FNA3D_VERSION: 26.04
+  FAUDIO_VERSION: 26.04
+  OPENSSL_VERSION: openssl-3.4
+  DOTNET_RUNTIME_VERSION: v10.0.3
+  EMSDK_VERSION: 3.1.56
+  ZLIB_VERSION: v1.3.1
+  LIBJPEG_TURBO_VERSION: 3.0.3
+  LIBPNG_VERSION: v1.6.43
+  FREETYPE_VERSION: VER-2-13-3
+  FONTCONFIG_VERSION: "2.15.0"
+  PIXMAN_VERSION: pixman-0.43.4
+  CAIRO_VERSION: "1.18.2"
+  EXPAT_VERSION: R_2_6_4
+  LIBFFI_VERSION: v3.4.8
+  GLIB_VERSION: "2.74.0"
+  MONO_VERSION: main
+  DOTNET_SDK_VERSION: '10.0.x'
+
+on: 
+  push:
+    branches: 
+      - main 
+  workflow_dispatch:
+      
+jobs:
+  build:
+    strategy:
+      matrix:
+        pthread_enabled: [true, false]
+    runs-on: ubuntu-latest
+    name: Build SDL3, SDL2, FNA natives, OpenSSL (pthread=${{ matrix.pthread_enabled }})
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v1
+      - name: Install NDK 
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25d
+      - name: Install dependencies
+        run: |
+          sudo apt -y update
+          sudo apt install -y ninja-build cmake llvm lld clang build-essential python-is-python3 curl git lldb libicu-dev liblttng-ust-dev libssl-dev libkrb5-dev pigz cpio spirv-headers
+      # - name: SDL3
+      #   shell: bash
+      #   run: |
+      #     git clone -b ${{ env.SDL_VERSION }} https://github.com/libsdl-org/SDL
+      #     cd SDL
+      #     mkdir emscripten-build
+      #     cd emscripten-build
+      #     PTHREAD_FLAGS=${{ matrix.pthread_enabled == true && '"-pthread"' || '""' }}
+      #     PTHREAD_ENABLED=${{ matrix.pthread_enabled == true && 'ON' || 'OFF' }}
+      #     CFLAGS=$PTHREAD_FLAGS emcmake cmake -S .. \
+      #       -DSDL_WERROR=ON \
+      #       -DSDL_TESTS=OFF \
+      #       -DSDL_INSTALL_TESTS=OFF \
+      #       -DCMAKE_BUILD_TYPE=Release \
+      #       -DCMAKE_INSTALL_PREFIX=prefix \
+      #       -DSDL_PTHREADS=$PTHREAD_ENABLED \
+      #       -DSDL_PTHREADS_SEM=$PTHREAD_ENABLED \
+      #       -GNinja
+      #     ninja
+      # - name: SDL2
+      #   shell: bash
+      #   run: | 
+      #     mkdir SDL2
+      #     cd SDL2
+      #     bash ../symbolrenamer.sh ../SDL/emscripten-build/libSDL3.a ./SDL3.renamed.h
+      #     git clone -b ${{ env.SDL_VERSION }} https://github.com/libsdl-org/SDL
+      #     cd SDL
+      #     git apply /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL3-SDL2.patch
+      #     mkdir emscripten-build
+      #     cd emscripten-build
+      #     PTHREAD_FLAGS=${{ matrix.pthread_enabled == true && '"-pthread"' || '""' }}
+      #     PTHREAD_ENABLED=${{ matrix.pthread_enabled == true && 'ON' || 'OFF' }}
+      #     emcmake cmake -S .. \
+      #       -DSDL_WERROR=OFF \
+      #       -DSDL_TESTS=OFF \
+      #       -DSDL_INSTALL_TESTS=OFF \
+      #       -DCMAKE_BUILD_TYPE=Release \
+      #       -DCMAKE_INSTALL_PREFIX=prefix \
+      #       -DSDL_PTHREADS=$PTHREAD_ENABLED \
+      #       -DSDL_PTHREADS_SEM=$PTHREAD_ENABLED \
+      #       -DCMAKE_C_FLAGS="$PTHREAD_FLAGS -include /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2/SDL3.renamed.h" \
+      #       -GNinja
+      #     ninja
+      #     cd ../..
+      #     git clone -b ${{ env.SDL2COMPAT_VERSION }} https://github.com/libsdl-org/sdl2-compat
+      #     cd sdl2-compat
+      #     git apply /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2.patch
+      #     mkdir emscripten-build
+      #     cd emscripten-build
+      #     PTHREAD_FLAGS=${{ matrix.pthread_enabled == true && '"-pthread"' || '""' }}
+      #     emcmake cmake -S .. \
+      #       -DSDL3_INCLUDE_DIRS="/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2/SDL/include" \
+      #       -DSDL3_STATIC_LIBRARY="/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2/SDL/emscripten-build/libSDL3.a" \
+      #       -DSDL2COMPAT_STATIC=1 \
+      #       -DSDL2COMPAT_TESTS=OFF \
+      #       -DSDL2COMPAT_X11=OFF \
+      #       -DCMAKE_C_FLAGS="$PTHREAD_FLAGS -DSTATIC_SDL3" \
+      #       -GNinja
+      #     ninja
+      #     cd ../..
+      #     cp SDL/emscripten-build/libSDL3.a libSDL3.a
+      #     cp sdl2-compat/emscripten-build/libSDL2-2.0.a libSDL2.a
+      #     emcc -r -o SDL2.o -Wl,--whole-archive libSDL2.a libSDL3.a
+      #     ar cr SDL2.a SDL2.o
+      # - name: FNA3D
+      #   shell: bash
+      #   run: |
+      #     git clone --recursive https://github.com/FNA-XNA/FNA3D -b ${{ env.FNA3D_VERSION }}
+      #     cd FNA3D
+      #     git apply /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/FNA3D.patch
+      #     mkdir build
+      #     cd build
+      #     emcmake cmake .. \
+      #       -DBUILD_SDL3=ON \
+      #       -DSDL3_INCLUDE_DIRS=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/include \
+      #       -DSDL3_LIBRARIES=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/emscripten-build/libSDL3.a \
+      #       -DBUILD_SHARED_LIBS=OFF \
+      #       -GNinja
+      #     ninja
+      # - name: FAudio
+      #   shell: bash
+      #   run: |           
+      #     git clone https://github.com/FNA-XNA/FAudio -b ${{ env.FAUDIO_VERSION }}
+      #     cd FAudio
+      #     mkdir build
+      #     cd build
+      #     emcmake cmake .. \
+      #       -DBUILD_SDL3=ON \
+      #       -DSDL3_INCLUDE_DIRS=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/include \
+      #       -DSDL3_LIBRARIES=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/emscripten-build/libSDL3.a \
+      #       -DBUILD_SHARED_LIBS=OFF \
+      #       -GNinja
+      #     ninja
+      # - name: OpenSSL
+      #   shell: bash
+      #   run: |
+      #     # https://github.com/ading2210/libcurl.js/blob/b071019761fe4a9833f7f45b5f7fc2a15cb55e4a/client/tools/openssl.sh
+      #     PREFIX=$PWD/openssl/openssl-wasm
+      #     mkdir -p $PREFIX  
+      #     cd openssl
+      #     git clone -b ${{ env.OPENSSL_VERSION }} --depth=1 https://github.com/openssl/openssl
+      #     cd openssl
+      #     export CFLAGS="-Wall -Oz"
+      #     export CXXFLAGS="-Wall -Oz"
+      #     emconfigure ./Configure linux-x32 --prefix=$PREFIX -no-asm -static -no-afalgeng -no-dso -DOPENSSL_SYS_NETWARE -DSIG_DFL=0 -DSIG_IGN=0 -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 -DOPENSSL_NO_SPEED=1 -DOPENSSL_NO_DYNAMIC_ENGINE -DDLOPEN_FLAG=0
+      #     sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile
+      #     emmake make -j$(nproc --all) build_generated libcrypto.a
+      # - name: Copy Binaries (non-dotnet)
+      #   shell: bash
+      #   run: |
+      #     mkdir Binaries
+      #     PREFIX=${{ matrix.pthread_enabled == false && 'ST-' || '' }}
+      #     cp ./SDL/emscripten-build/libSDL3.a Binaries/${PREFIX}SDL3.a
+      #     cp ./SDL2/SDL2.a Binaries/${PREFIX}SDL2.a
+      #     cp ./FNA3D/build/libFNA3D.a Binaries/${PREFIX}FNA3D.a
+      #     cp ./FNA3D/build/libmojoshader.a Binaries/${PREFIX}libmojoshader.a    
+      #     cp ./FAudio/build/libFAudio.a Binaries/${PREFIX}FAudio.a
+      #     cp ./openssl/openssl/libcrypto.a Binaries/${PREFIX}libcrypto.a
+      # - name: Archive Libraries (pthread=${{ matrix.pthread_enabled }})
+      #   uses: actions/upload-artifact@master
+      #   with:
+      #     name: WASM-libs-pthread-${{ matrix.pthread_enabled }}
+      #     path: Binaries/
+
+  build-dotnet:
+    strategy:
+      matrix:
+        pthread_enabled: [true, false]
+    runs-on: ubuntu-latest
+    name: Build dotnet (pthread=${{ matrix.pthread_enabled }})
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v1
+      - name: Install NDK 
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25d
+      - name: Install dependencies
+        run: |
+          sudo apt -y update
+          sudo apt install -y ninja-build cmake llvm lld clang build-essential python-is-python3 curl git lldb libicu-dev liblttng-ust-dev libssl-dev libkrb5-dev pigz cpio spirv-headers ripgrep
+      - name: dotnet
+        shell: bash
+        run: |
+          mkdir -p Binaries
+          git clone -b ${{ env.DOTNET_RUNTIME_VERSION }} --depth=1 https://github.com/dotnet/runtime
+          cd runtime/
+          git apply ../../dotnet-static-init.patch
+          git apply ../../dotnet-relax-typeload.patch
+          ABIS_DEFAULT=(arm64 x64)
+          for abi in "${SELECTED_ABIS[@]}"; do
+            arch="$abi"
+            rid="android-$arch"
+            ./build.sh \
+              --os android \
+              --arch "$arch" \
+              --configuration Release \
+              --subset mono+libs \
+              /p:KeepNativeSymbols=true
+            7z a ../Binaries/runtime-$abi.zip "./artifacts/bin/microsoft.netcore.app.runtime.mono.$rid/Release/*"
+          done
+      - name: Archive Dotnet
+        uses: actions/upload-artifact@master
+        with:
+          name: Android-dotnet
+          path: Binaries/
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build, build-dotnet]
+    name: Create Release
+    steps:
+      - name: Generate Release Name
+        run: echo RELEASE_NAME=$(uuidgen) >> $GITHUB_ENV
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Organize binaries for release
+        run: |
+          mkdir release_assets
+          find artifacts/ -type f | while read file; do
+            cp "$file" release_assets/
+          done
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: 'FNALibs Android ${{ env.RELEASE_NAME }}'
+          body: 'These are the FNA libs build for Android'
+          commit: ${{ github.ref_name }}
+          tag: ${{ env.RELEASE_NAME }}
+          removeArtifacts: true
+          artifacts: "release_assets/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
