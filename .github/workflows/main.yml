@@ -237,23 +237,52 @@ jobs:
         shell: bash
         run: |
           export ANDROID_NDK_ROOT=$ANDROID_NDK_HOME
-          mkdir -p Binaries
+          mkdir -p Staging
           git clone -b ${{ env.DOTNET_RUNTIME_VERSION }} --depth=1 https://github.com/dotnet/runtime
           cd runtime/
+
+          # Order matters: dotnet-static-init.patch defines the BFI
+          # cctor gate; the *-sflda-bfi and *-jit-exit addenda close
+          # the JIT-side call sites the upstream patch missed (only
+          # the WASM interp paths were covered upstream).
           git apply ../dotnet-static-init.patch
           git apply ../dotnet-relax-typeload.patch
+          git apply ../dotnet-static-init-sflda-bfi.patch
+          git apply ../dotnet-static-init-jit-exit.patch
+
           ABIS=(arm64 x64)
           for abi in "${ABIS[@]}"; do
-            arch="$abi"
-            rid="android-$arch"
+            rid="android-$abi"
             ./build.sh \
               --os android \
-              --arch "$arch" \
+              --arch "$abi" \
               --configuration Release \
               --subset mono+libs \
               /p:KeepNativeSymbols=true
-            7z a ../Binaries/runtime-$abi.zip "./artifacts/bin/microsoft.netcore.app.runtime.mono.$rid/Release/*"
+
+            src=""
+            for cand in \
+              "./artifacts/bin/microsoft.netcore.app.runtime.$rid/Release/runtimes/$rid/native" \
+              "./artifacts/bin/microsoft.netcore.app.runtime.mono.$rid/Release/runtimes/$rid/native" \
+              "./artifacts/packages/Release/Microsoft.NETCore.App.Runtime.$rid/runtimes/$rid/native" \
+              "./artifacts/packages/Release/Microsoft.NETCore.App.Runtime.Mono.$rid/runtimes/$rid/native" \
+            ; do
+              if [[ -d "$cand" ]]; then src="$cand"; break; fi
+            done
+            if [[ -z "$src" ]]; then
+              echo "ERROR: couldn't find native artifacts for $rid" >&2
+              find ./artifacts -maxdepth 5 -type d -name native | head -10
+              exit 1
+            fi
+
+            mkdir -p "../Staging/$rid/native"
+            cp -a "$src/." "../Staging/$rid/native/"
           done
+
+          cd ..
+          mkdir -p Binaries
+          ( cd Staging && zip -qr ../Binaries/dotnet-runtime-android.zip . )
+          ls -la Binaries/
       - name: Archive Dotnet
         uses: actions/upload-artifact@master
         with:

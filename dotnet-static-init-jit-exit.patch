@@ -1,0 +1,15 @@
+--- a/src/mono/mono/mini/mini.c	2026-05-05 20:53:28.943630411 -0400
++++ b/src/mono/mono/mini/mini.c	2026-05-05 20:53:28.994766856 -0400
+@@ -4359,7 +4359,11 @@
+ 	if (prof_method != method && !jinfo->has_generic_jit_info)
+ 		MONO_PROFILER_RAISE (jit_done, (prof_method, jinfo));
+ 
+-	if (!mono_runtime_class_init_full (vtable, error))
++	/* Celdroid: BFI classes defer cctor to first static-field access
++	 * (CoreCLR-aligned). Without this, JIT'ing any method on a BFI
++	 * class fires the cctor at compile time — exactly what the
++	 * dotnet-static-init.patch is trying to prevent on other paths. */
++	if (!mono_class_is_before_field_init (method->klass) && !mono_runtime_class_init_full (vtable, error))
+ 		return NULL;
+ 	return MINI_ADDR_TO_FTNPTR (code);
+ }

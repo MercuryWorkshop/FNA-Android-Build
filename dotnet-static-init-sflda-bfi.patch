@@ -1,0 +1,13 @@
+--- a/src/mono/mono/mini/mini-runtime.c	2026-05-05 20:31:48.154670163 -0400
++++ b/src/mono/mono/mini/mini-runtime.c	2026-05-05 20:31:48.195252724 -0400
+@@ -1567,8 +1567,8 @@
+ 			g_assert (special_static_offset);
+ 		}
+ 
+-		if (!vtable->initialized && !mono_class_is_before_field_init (vtable->klass) && (method && mono_class_needs_cctor_run (vtable->klass, method)))
+-			/* Done by the generated code */
++		if (!vtable->initialized && (mono_class_is_before_field_init (vtable->klass) || (method && mono_class_needs_cctor_run (vtable->klass, method))))
++			/* Done by the generated code, or deferred for BFI to first static-field access. */
+ 			;
+ 		else {
+ 			if (run_cctors) {
