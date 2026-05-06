@@ -109,6 +109,7 @@ jobs:
       - name: SDL3
         shell: bash
         run: |
+          set -euo pipefail
           ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
           API_LEVEL=26
           TOOLCHAIN="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
@@ -130,7 +131,12 @@ jobs:
                   -DCMAKE_BUILD_TYPE=Release \
                   -DCMAKE_INSTALL_PREFIX="$PREFIX" \
                   -GNinja
-              cmake --build "$BUILD_DIR" --target SDL3-shared -j
+              # Build all default targets — not just SDL3-shared. SDL3's
+              # install pass on Android tries to install SDL3-<ver>.jar
+              # (the org.libsdl.app Java bindings), and skipping the
+              # default targets means the jar never gets built and
+              # `cmake --install` errors out looking for it.
+              cmake --build "$BUILD_DIR" -j
               cmake --install "$BUILD_DIR"
               # Android can't load versioned sonames (libfoo.so.0) — strip
               # the SOVERSION so the dynamic linker finds it under the
@@ -139,6 +145,18 @@ jobs:
               cp "$PREFIX/lib/libSDL3.so" "Binaries/libSDL3-$abi.so"
               patchelf --set-soname libSDL3.so "Binaries/libSDL3-$abi.so"
           done
+
+          # The SDL3 Java bindings jar is identical for every ABI;
+          # publish it once so consumers can drop it in
+          # android/app/libs/SDL3.jar.
+          JAR="$(find sdl3 -maxdepth 5 -name 'SDL3-*.jar' -type f | head -n1)"
+          if [[ -n "$JAR" ]]; then
+              cp "$JAR" Binaries/SDL3.jar
+          else
+              echo "ERROR: SDL3 jar not produced by install step" >&2
+              find sdl3 -maxdepth 5 -name '*.jar' -type f
+              exit 1
+          fi
       - name: FNA3D
         shell: bash
         run: |
