@@ -5,7 +5,7 @@
  		MONO_PROFILER_RAISE (jit_done, (prof_method, jinfo));
  
 -	if (!mono_runtime_class_init_full (vtable, error))
-+	/* Celdroid: BFI classes defer cctor to first static-field access
++	/* Everdroid: BFI classes defer cctor to first static-field access
 +	 * (CoreCLR-aligned). Without this, JIT'ing any method on a BFI
 +	 * class fires the cctor at compile time — exactly what the
 +	 * dotnet-static-init.patch is trying to prevent on other paths. */

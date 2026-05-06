@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt -y update
-          sudo apt install -y ninja-build cmake llvm lld clang build-essential python-is-python3 curl git lldb libicu-dev liblttng-ust-dev libssl-dev libkrb5-dev pigz cpio spirv-headers
+          sudo apt install -y ninja-build cmake llvm lld clang build-essential python-is-python3 curl git lldb libicu-dev liblttng-ust-dev libssl-dev libkrb5-dev pigz cpio spirv-headers patchelf
       - name: lua54
         run: |
           ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
@@ -94,129 +94,78 @@ jobs:
               cp "$TMP_OUT/liblua54.so" "../../Binaries/liblua54-$abi.so"
           done
           
-      # - name: SDL3
-      #   shell: bash
-      #   run: |
-      #     git clone -b ${{ env.SDL_VERSION }} https://github.com/libsdl-org/SDL
-      #     cd SDL
-      #     mkdir emscripten-build
-      #     cd emscripten-build
-      #     PTHREAD_FLAGS=${{ matrix.pthread_enabled == true && '"-pthread"' || '""' }}
-      #     PTHREAD_ENABLED=${{ matrix.pthread_enabled == true && 'ON' || 'OFF' }}
-      #     CFLAGS=$PTHREAD_FLAGS emcmake cmake -S .. \
-      #       -DSDL_WERROR=ON \
-      #       -DSDL_TESTS=OFF \
-      #       -DSDL_INSTALL_TESTS=OFF \
-      #       -DCMAKE_BUILD_TYPE=Release \
-      #       -DCMAKE_INSTALL_PREFIX=prefix \
-      #       -DSDL_PTHREADS=$PTHREAD_ENABLED \
-      #       -DSDL_PTHREADS_SEM=$PTHREAD_ENABLED \
-      #       -GNinja
-      #     ninja
-      # - name: SDL2
-      #   shell: bash
-      #   run: | 
-      #     mkdir SDL2
-      #     cd SDL2
-      #     bash ../symbolrenamer.sh ../SDL/emscripten-build/libSDL3.a ./SDL3.renamed.h
-      #     git clone -b ${{ env.SDL_VERSION }} https://github.com/libsdl-org/SDL
-      #     cd SDL
-      #     git apply /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL3-SDL2.patch
-      #     mkdir emscripten-build
-      #     cd emscripten-build
-      #     PTHREAD_FLAGS=${{ matrix.pthread_enabled == true && '"-pthread"' || '""' }}
-      #     PTHREAD_ENABLED=${{ matrix.pthread_enabled == true && 'ON' || 'OFF' }}
-      #     emcmake cmake -S .. \
-      #       -DSDL_WERROR=OFF \
-      #       -DSDL_TESTS=OFF \
-      #       -DSDL_INSTALL_TESTS=OFF \
-      #       -DCMAKE_BUILD_TYPE=Release \
-      #       -DCMAKE_INSTALL_PREFIX=prefix \
-      #       -DSDL_PTHREADS=$PTHREAD_ENABLED \
-      #       -DSDL_PTHREADS_SEM=$PTHREAD_ENABLED \
-      #       -DCMAKE_C_FLAGS="$PTHREAD_FLAGS -include /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2/SDL3.renamed.h" \
-      #       -GNinja
-      #     ninja
-      #     cd ../..
-      #     git clone -b ${{ env.SDL2COMPAT_VERSION }} https://github.com/libsdl-org/sdl2-compat
-      #     cd sdl2-compat
-      #     git apply /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2.patch
-      #     mkdir emscripten-build
-      #     cd emscripten-build
-      #     PTHREAD_FLAGS=${{ matrix.pthread_enabled == true && '"-pthread"' || '""' }}
-      #     emcmake cmake -S .. \
-      #       -DSDL3_INCLUDE_DIRS="/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2/SDL/include" \
-      #       -DSDL3_STATIC_LIBRARY="/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL2/SDL/emscripten-build/libSDL3.a" \
-      #       -DSDL2COMPAT_STATIC=1 \
-      #       -DSDL2COMPAT_TESTS=OFF \
-      #       -DSDL2COMPAT_X11=OFF \
-      #       -DCMAKE_C_FLAGS="$PTHREAD_FLAGS -DSTATIC_SDL3" \
-      #       -GNinja
-      #     ninja
-      #     cd ../..
-      #     cp SDL/emscripten-build/libSDL3.a libSDL3.a
-      #     cp sdl2-compat/emscripten-build/libSDL2-2.0.a libSDL2.a
-      #     emcc -r -o SDL2.o -Wl,--whole-archive libSDL2.a libSDL3.a
-      #     ar cr SDL2.a SDL2.o
-      # - name: FNA3D
-      #   shell: bash
-      #   run: |
-      #     git clone --recursive https://github.com/FNA-XNA/FNA3D -b ${{ env.FNA3D_VERSION }}
-      #     cd FNA3D
-      #     git apply /home/runner/work/FNA-WASM-Build/FNA-WASM-Build/FNA3D.patch
-      #     mkdir build
-      #     cd build
-      #     emcmake cmake .. \
-      #       -DBUILD_SDL3=ON \
-      #       -DSDL3_INCLUDE_DIRS=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/include \
-      #       -DSDL3_LIBRARIES=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/emscripten-build/libSDL3.a \
-      #       -DBUILD_SHARED_LIBS=OFF \
-      #       -GNinja
-      #     ninja
-      # - name: FAudio
-      #   shell: bash
-      #   run: |           
-      #     git clone https://github.com/FNA-XNA/FAudio -b ${{ env.FAUDIO_VERSION }}
-      #     cd FAudio
-      #     mkdir build
-      #     cd build
-      #     emcmake cmake .. \
-      #       -DBUILD_SDL3=ON \
-      #       -DSDL3_INCLUDE_DIRS=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/include \
-      #       -DSDL3_LIBRARIES=/home/runner/work/FNA-WASM-Build/FNA-WASM-Build/SDL/emscripten-build/libSDL3.a \
-      #       -DBUILD_SHARED_LIBS=OFF \
-      #       -GNinja
-      #     ninja
-      # - name: OpenSSL
-      #   shell: bash
-      #   run: |
-      #     # https://github.com/ading2210/libcurl.js/blob/b071019761fe4a9833f7f45b5f7fc2a15cb55e4a/client/tools/openssl.sh
-      #     PREFIX=$PWD/openssl/openssl-wasm
-      #     mkdir -p $PREFIX  
-      #     cd openssl
-      #     git clone -b ${{ env.OPENSSL_VERSION }} --depth=1 https://github.com/openssl/openssl
-      #     cd openssl
-      #     export CFLAGS="-Wall -Oz"
-      #     export CXXFLAGS="-Wall -Oz"
-      #     emconfigure ./Configure linux-x32 --prefix=$PREFIX -no-asm -static -no-afalgeng -no-dso -DOPENSSL_SYS_NETWARE -DSIG_DFL=0 -DSIG_IGN=0 -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 -DOPENSSL_NO_SPEED=1 -DOPENSSL_NO_DYNAMIC_ENGINE -DDLOPEN_FLAG=0
-      #     sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile
-      #     emmake make -j$(nproc --all) build_generated libcrypto.a
-      # - name: Copy Binaries (non-dotnet)
-      #   shell: bash
-      #   run: |
-      #     mkdir Binaries
-      #     PREFIX=${{ matrix.pthread_enabled == false && 'ST-' || '' }}
-      #     cp ./SDL/emscripten-build/libSDL3.a Binaries/${PREFIX}SDL3.a
-      #     cp ./SDL2/SDL2.a Binaries/${PREFIX}SDL2.a
-      #     cp ./FNA3D/build/libFNA3D.a Binaries/${PREFIX}FNA3D.a
-      #     cp ./FNA3D/build/libmojoshader.a Binaries/${PREFIX}libmojoshader.a    
-      #     cp ./FAudio/build/libFAudio.a Binaries/${PREFIX}FAudio.a
-      #     cp ./openssl/openssl/libcrypto.a Binaries/${PREFIX}libcrypto.a
-      # - name: Archive Libraries (pthread=${{ matrix.pthread_enabled }})
-      #   uses: actions/upload-artifact@master
-      #   with:
-      #     name: WASM-libs-pthread-${{ matrix.pthread_enabled }}
-      #     path: Binaries/
+      - name: SDL3
+        shell: bash
+        run: |
+          ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+          API_LEVEL=26
+          TOOLCHAIN="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+          git clone --depth 1 -b ${{ env.SDL_VERSION }} https://github.com/libsdl-org/SDL sdl3-src
+          mkdir -p Binaries sdl3
+          for abi in "${ABIS[@]}"; do
+              BUILD_DIR="build-sdl3-$abi"
+              PREFIX="$(pwd)/sdl3/$abi"
+              rm -rf "$BUILD_DIR"
+              cmake -S sdl3-src -B "$BUILD_DIR" \
+                  -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+                  -DANDROID_ABI="$abi" \
+                  -DANDROID_PLATFORM=android-$API_LEVEL \
+                  -DSDL_SHARED=ON \
+                  -DSDL_STATIC=OFF \
+                  -DSDL_TEST_LIBRARY=OFF \
+                  -DSDL_TESTS=OFF \
+                  -DSDL_INSTALL_TESTS=OFF \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+                  -GNinja
+              cmake --build "$BUILD_DIR" --target SDL3-shared -j
+              cmake --install "$BUILD_DIR"
+              # Android can't load versioned sonames (libfoo.so.0) — strip
+              # the SOVERSION so the dynamic linker finds it under the
+              # bare libSDL3.so name. Also rename to <abi>-tagged so
+              # consumers can pull individual files from the release.
+              cp "$PREFIX/lib/libSDL3.so" "Binaries/libSDL3-$abi.so"
+              patchelf --set-soname libSDL3.so "Binaries/libSDL3-$abi.so"
+          done
+      - name: FNA3D
+        shell: bash
+        run: |
+          ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+          API_LEVEL=26
+          TOOLCHAIN="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+          git clone --recursive --depth 1 -b ${{ env.FNA3D_VERSION }} https://github.com/FNA-XNA/FNA3D fna3d-src
+          for abi in "${ABIS[@]}"; do
+              BUILD_DIR="build-fna3d-$abi"
+              SDL3_PREFIX="$(pwd)/sdl3/$abi"
+              rm -rf "$BUILD_DIR"
+              cmake -S fna3d-src -B "$BUILD_DIR" \
+                  -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+                  -DANDROID_ABI="$abi" \
+                  -DANDROID_PLATFORM=android-$API_LEVEL \
+                  -DANDROID_STL=c++_static \
+                  -DBUILD_SHARED_LIBS=ON \
+                  -DBUILD_SDL3=ON \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DSDL3_DIR="$SDL3_PREFIX/lib/cmake/SDL3" \
+                  -DCMAKE_C_FLAGS="-DGL_GLEXT_PROTOTYPES -O3" \
+                  -GNinja
+              cmake --build "$BUILD_DIR" --target FNA3D -j
+              # CMake may emit libFNA3D.so or versioned variants depending
+              # on the upstream config. Pick the file (not a symlink) and
+              # strip its SONAME for the same reason as SDL3.
+              SRC_LIB="$(find "$BUILD_DIR" -maxdepth 2 -name 'libFNA3D.so*' -type f | head -n1)"
+              if [[ -z "$SRC_LIB" ]]; then
+                  echo "ERROR: FNA3D produced no .so for $abi" >&2
+                  exit 1
+              fi
+              cp "$SRC_LIB" "Binaries/libFNA3D-$abi.so"
+              patchelf --set-soname libFNA3D.so "Binaries/libFNA3D-$abi.so"
+          done
+      - name: Archive Native Libs
+        uses: actions/upload-artifact@master
+        with:
+          name: Android-natives
+          path: Binaries/
 
   build-dotnet:
     runs-on: ubuntu-latest
@@ -241,10 +190,7 @@ jobs:
           git clone -b ${{ env.DOTNET_RUNTIME_VERSION }} --depth=1 https://github.com/dotnet/runtime
           cd runtime/
 
-          # Order matters: dotnet-static-init.patch defines the BFI
-          # cctor gate; the *-sflda-bfi and *-jit-exit addenda close
-          # the JIT-side call sites the upstream patch missed (only
-          # the WASM interp paths were covered upstream).
+          # keep order correct
           git apply ../dotnet-static-init.patch
           git apply ../dotnet-relax-typeload.patch
           git apply ../dotnet-static-init-sflda-bfi.patch
