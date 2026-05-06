@@ -4,20 +4,7 @@ env:
   SDL_VERSION: release-3.4.4
   SDL2COMPAT_VERSION: release-2.32.66
   FNA3D_VERSION: 26.04
-  FAUDIO_VERSION: 26.04
-  OPENSSL_VERSION: openssl-3.4
   DOTNET_RUNTIME_VERSION: v10.0.3
-  EMSDK_VERSION: 3.1.56
-  ZLIB_VERSION: v1.3.1
-  LIBJPEG_TURBO_VERSION: 3.0.3
-  LIBPNG_VERSION: v1.6.43
-  FREETYPE_VERSION: VER-2-13-3
-  FONTCONFIG_VERSION: "2.15.0"
-  PIXMAN_VERSION: pixman-0.43.4
-  CAIRO_VERSION: "1.18.2"
-  EXPAT_VERSION: R_2_6_4
-  LIBFFI_VERSION: v3.4.8
-  GLIB_VERSION: "2.74.0"
   MONO_VERSION: main
   DOTNET_SDK_VERSION: '10.0.x'
 
@@ -58,10 +45,6 @@ jobs:
           mv "lua-$LUA_VERSION" lua-src
           mkdir -p Binaries
 
-          # Compute the source list once — same for every ABI. We do it
-          # outside the per-ABI loop so we don't `cd` mid-loop and lose
-          # our footing on iter 2 (the prior version did `cd lua-src/src`
-          # without `cd`-ing back, breaking the next iteration).
           SOURCES=()
           for f in lua-src/src/*.c; do
               base="$(basename "$f")"
@@ -89,11 +72,6 @@ jobs:
               rm -rf "$TMP_OUT"
               mkdir -p "$TMP_OUT"
 
-              # LUA_USE_LINUX implicitly turns on LUA_USE_POSIX +
-              # LUA_USE_DLOPEN inside luaconf.h, so don't define them
-              # again on the command line — clang warns on redefinition
-              # and -Werror would turn it into an error if upstream
-              # ever flips that flag.
               "$CC" \
                   -O2 -fPIC -shared \
                   -DLUA_USE_LINUX \
@@ -131,11 +109,6 @@ jobs:
                   -DCMAKE_BUILD_TYPE=Release \
                   -DCMAKE_INSTALL_PREFIX="$PREFIX" \
                   -GNinja
-              # Build all default targets — not just SDL3-shared. SDL3's
-              # install pass on Android tries to install SDL3-<ver>.jar
-              # (the org.libsdl.app Java bindings), and skipping the
-              # default targets means the jar never gets built and
-              # `cmake --install` errors out looking for it.
               cmake --build "$BUILD_DIR" -j
               cmake --install "$BUILD_DIR"
               # Android can't load versioned sonames (libfoo.so.0) — strip
