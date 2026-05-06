@@ -33,7 +33,7 @@ jobs:
       - name: lua54
         run: |
           set -euo pipefail
-          ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+          ABIS=("arm64-v8a" "x86_64")
           API_LEVEL=26
           LUA_VERSION="${LUA_VERSION:-5.4.7}"
           LUA_TARBALL="https://www.lua.org/ftp/lua-$LUA_VERSION.tar.gz"
@@ -57,8 +57,6 @@ jobs:
           for abi in "${ABIS[@]}"; do
               case "$abi" in
                   arm64-v8a)    triple="aarch64-linux-android" ;;
-                  armeabi-v7a)  triple="armv7a-linux-androideabi" ;;
-                  x86)          triple="i686-linux-android" ;;
                   x86_64)       triple="x86_64-linux-android" ;;
               esac
 
@@ -88,7 +86,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+          ABIS=("arm64-v8a" "x86_64")
           API_LEVEL=26
           TOOLCHAIN="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
           git clone --depth 1 -b ${{ env.SDL_VERSION }} https://github.com/libsdl-org/SDL sdl3-src
@@ -133,7 +131,7 @@ jobs:
       - name: FNA3D
         shell: bash
         run: |
-          ABIS=("arm64-v8a" "armeabi-v7a" "x86" "x86_64")
+          ABIS=("arm64-v8a" "x86_64")
           API_LEVEL=26
           TOOLCHAIN="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
           git clone --recursive --depth 1 -b ${{ env.FNA3D_VERSION }} https://github.com/FNA-XNA/FNA3D fna3d-src
