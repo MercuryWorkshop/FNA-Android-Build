@@ -128,6 +128,51 @@ jobs:
               find sdl3 -maxdepth 5 -name '*.jar' -type f
               exit 1
           fi
+      - name: SDL2 (sdl2-compat)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ABIS=("arm64-v8a" "x86_64")
+          API_LEVEL=26
+          TOOLCHAIN="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+          git clone --depth 1 -b ${{ env.SDL2COMPAT_VERSION }} https://github.com/libsdl-org/sdl2-compat sdl2compat-src
+          for abi in "${ABIS[@]}"; do
+              BUILD_DIR="build-sdl2compat-$abi"
+              SDL3_PREFIX="$(pwd)/sdl3/$abi"
+              rm -rf "$BUILD_DIR"
+              # sdl2-compat is a CMake project that re-exports the SDL2
+              # ABI on top of an existing SDL3. find_package(SDL3 CONFIG)
+              # picks up the install we produced in the SDL3 step above.
+              # Disable tests / install-cpack to avoid pulling in the
+              # SDL2 test runner, which doesn't cross-compile cleanly to
+              # Android.
+              cmake -S sdl2compat-src -B "$BUILD_DIR" \
+                  -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+                  -DANDROID_ABI="$abi" \
+                  -DANDROID_PLATFORM=android-$API_LEVEL \
+                  -DSDL3_DIR="$SDL3_PREFIX/lib/cmake/SDL3" \
+                  -DSDL2COMPAT_TESTS=OFF \
+                  -DSDL2COMPAT_INSTALL_CPACK=OFF \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -GNinja
+              cmake --build "$BUILD_DIR" -j
+              # sdl2-compat emits libSDL2-2.0.so.0.<minor>.<patch> as the
+              # actual file plus libSDL2-2.0.so / libSDL2-2.0.so.0
+              # symlinks. Pick the file (-type f) and patch its SONAME to
+              # libSDL2.so so Android's linker — and .NET-Android's
+              # [DllImport("SDL2")] name decoration — find it under the
+              # bare name in jniLibs/<abi>/.
+              SRC_LIB="$(find "$BUILD_DIR" -maxdepth 2 \
+                  \( -name 'libSDL2-2.0.so*' -o -name 'libSDL2.so*' \) \
+                  -type f | head -n1)"
+              if [[ -z "$SRC_LIB" ]]; then
+                  echo "ERROR: sdl2-compat produced no .so for $abi" >&2
+                  find "$BUILD_DIR" -maxdepth 2 -name 'libSDL2*' >&2
+                  exit 1
+              fi
+              cp "$SRC_LIB" "Binaries/libSDL2-$abi.so"
+              patchelf --set-soname libSDL2.so "Binaries/libSDL2-$abi.so"
+          done
       - name: FNA3D
         shell: bash
         run: |
