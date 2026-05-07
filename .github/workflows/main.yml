@@ -192,6 +192,8 @@ jobs:
           cd runtime/
 
           # keep order correct
+          git apply ../dotnet-gettypes-rtle.patch
+          git apply ../dotnet-nuke-security.patch
           git apply ../dotnet-static-init.patch
           git apply ../dotnet-relax-typeload.patch
           git apply ../dotnet-static-init-sflda-bfi.patch
