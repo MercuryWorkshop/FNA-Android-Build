@@ -140,10 +140,7 @@ jobs:
                   -DSDL3_DIR="$SDL3_PREFIX/lib/cmake/SDL3" \
                   -DSDL2COMPAT_TESTS=OFF \
                   -DSDL2COMPAT_INSTALL_CPACK=OFF \
-                  -DSDL2COMPAT_TRY_X11=OFF \
-                  -DSDL2COMPAT_TRY_WAYLAND=OFF \
-                  -DCMAKE_DISABLE_FIND_PACKAGE_X11=TRUE \
-                  -DCMAKE_DISABLE_FIND_PACKAGE_Wayland=TRUE \
+                  -DSDL2COMPAT_X11=OFF \
                   -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
                   -DCMAKE_BUILD_TYPE=Release \
                   -GNinja
